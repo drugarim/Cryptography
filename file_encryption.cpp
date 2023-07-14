@@ -35,12 +35,14 @@ void encrypt(const std::string &plaintextFilename, const std::string &ciphertext
 
     while (!inputFile.eof())
     {
-        inputFile.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
+        inputFile.read(reinterpret_cast<char *>(buffer.data()), BLOCK_SIZE);
+        size_t s = buffer.size();
         size_t bytesRead = inputFile.gcount();
 
         buffer.resize(bytesRead);
         enc->start(iv);
         enc->finish(buffer);
+        s = buffer.size();
 
         // Write encrypted data to output file
         outputFile.write(reinterpret_cast<const char *>(buffer.data()), buffer.size());
@@ -87,14 +89,16 @@ void decrypt(const std::string &ciphertextFilename, const std::string &decryptio
 
     while (!ciphertextStream.eof())
     {
-        ciphertextStream.read(reinterpret_cast<char *>(ciphertextBuffer.data()), ciphertextBuffer.size());
+        ciphertextBuffer.resize(BLOCK_SIZE + 16);
+        ciphertextStream.read(reinterpret_cast<char *>(ciphertextBuffer.data()), BLOCK_SIZE + 16);
         size_t bytesRead = ciphertextStream.gcount();
-
         ciphertextBuffer.resize(bytesRead);
+        size_t s = ciphertextBuffer.size();
+
         // Set the IV from the header
         decrypt->start(header);
         decrypt->finish(ciphertextBuffer);
-
+        s = ciphertextBuffer.size();
         // Write decrypted data to output file
         decryptionResultStream.write(reinterpret_cast<const char *>(ciphertextBuffer.data()), ciphertextBuffer.size());
     }
