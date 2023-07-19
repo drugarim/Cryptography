@@ -137,9 +137,9 @@ int main()
     std::string ciphertextFilename = "ciphertext.txt";
 
     // ask the user what file they want to encrypt
-    std::string plaintextFilename = "dave.txt";
+    std::string plaintextFilename;
     std::cout << "Which file would you like to encrypt: " << std::endl;
-    // std::cin >> plaintextFilename;
+    std::cin >> plaintextFilename;
 
     startEncryption(plaintextFilename, ciphertextFilename, key, iv);
 
