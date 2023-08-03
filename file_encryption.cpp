@@ -182,55 +182,86 @@ void startDecryption(const std::string& ciphertextFilename, const std::string& d
     decryptionResultStream.close();
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    // Ask the user for the password
-    std::string password;
-    std::cout << "Enter password to encrypt: ";
-    std::cin >> password;
-
-
-    // Encryption
-    std::string plaintextFilename;
-    std::cout << "Enter the name of the file to encrypt: ";
-    std::cin >> plaintextFilename;
-    std::string ciphertextFilename = "cipheredText.txt";
-
-    startEncryption(plaintextFilename, ciphertextFilename, password);
-
-    // Decryption
-    std::string decryptionResultFile;
-    std::cout << "Enter name of file to store the decrypted text; ";
-    std::cin >> decryptionResultFile;
-
-    // if password is incorrect, allow only 3 attempts
-    bool passwordMatched = false;
-    for (int i = 0; i < 3; ++i)
+    if (argc != 4)
     {
-        std::string decryptPassword;
-        std::cout << "Enter the password for decryption: ";
-        std::cin >> decryptPassword;
-
-        // Verify the password for decryption before starting the decryption process
-        if (password == decryptPassword)
-        {
-            passwordMatched = true;
-            break;
-        }
-        else
-        {
-            std::cerr << "Error: Incorrect password. Please try again." << std::endl;
-        }
+        std::cerr << "Usage: " << argv[0] << " <encrypt/decrypt> <input_file> <output_file>\n";
+        return 1;
     }
 
-    // Check if password is correct
-    if (passwordMatched)
+    // Initialize Botan library
+    Botan::LibraryInitializer init;
+
+    std::string operation = argv[1];
+    std::string inputFilename = argv[2];
+    std::string outputFilename = argv[3];
+
+    if (operation == "encrypt")
     {
-        startDecryption(ciphertextFilename, decryptionResultFile, password);
+        // Ask the user for the password
+        std::string password;
+        std::cout << "Enter password to encrypt: ";
+        std::cin >> password;
+
+        // Generate a random salt
+        std::vector<uint8_t> salt(16);
+        rng.randomize(salt.data(), salt.size());
+
+        // Derive the key from the password and salt
+        std::vector<uint8_t> key = deriveKey(password, salt);
+
+        // Generate a random IV
+        std::vector<uint8_t> iv(AES_IV_LENGTH);
+        rng.randomize(iv.data(), iv.size());
+
+        // Encrypt the file and pass the salt to the function
+        encrypt(inputFilename, outputFilename, key, iv, salt);
+
+        std::cout << "File encrypted." << std::endl;
+    }
+    else if (operation == "decrypt")
+    {
+        // Ask the user for the password
+        std::string password;
+        std::cout << "Enter the password for decryption: ";
+        std::cin >> password;
+
+        // Create input and output file streams
+        std::ifstream ciphertextStream(inputFilename, std::ios::binary);
+        if (!ciphertextStream)
+        {
+            std::cerr << "Error: Unable to open input file: " << inputFilename << std::endl;
+            return 1;
+        }
+        std::ofstream decryptionResultStream(outputFilename, std::ios::binary | std::ios::out);
+        if (!decryptionResultStream)
+        {
+            std::cerr << "Error: Unable to open output file: " << outputFilename << std::endl;
+            ciphertextStream.close();
+            return 1;
+        }
+
+        // Read the salt from the input file
+        std::vector<uint8_t> salt(16);
+        ciphertextStream.read(reinterpret_cast<char*>(salt.data()), salt.size());
+
+        // Derive the key from the password and the read salt
+        std::vector<uint8_t> key = deriveKey(password, salt);
+
+        // Decrypt the file
+        decrypt(inputFilename, outputFilename, key);
+
+        std::cout << "File decrypted." << std::endl;
+
+        // Close file streams
+        ciphertextStream.close();
+        decryptionResultStream.close();
     }
     else
     {
-        std::cerr << "Error: Maximum number of attempts reached. Exiting..." << std::endl;
+        std::cerr << "Error: Invalid operation. Use 'encrypt' or 'decrypt'.\n";
+        return 1;
     }
 
     return 0;
